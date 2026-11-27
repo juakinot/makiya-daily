@@ -48,8 +48,8 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
           description="Ocurrió un error inesperado en la demostración. Puedes volver al inicio o restablecer los datos de prueba."
           action={
             <div className="flex gap-2">
-              <Button size="sm" variant="secondary" onClick={() => (window.location.href = '/')}>Ir al inicio</Button>
-              <Button size="sm" onClick={() => { try { localStorage.removeItem('makiya.demo.db'); } catch { /* */ } window.location.href = '/'; }}>Restablecer datos</Button>
+              <Button size="sm" variant="secondary" onClick={() => (window.location.href = import.meta.env.BASE_URL)}>Ir al inicio</Button>
+              <Button size="sm" onClick={() => { try { localStorage.removeItem('makiya.demo.db'); } catch { /* */ } window.location.href = import.meta.env.BASE_URL; }}>Restablecer datos</Button>
             </div>
           }
         />
@@ -103,7 +103,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <AppProvider>
-        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <BrowserRouter basename={import.meta.env.BASE_URL} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <ScrollToTop />
           <ToastHost />
           <AppRoutes />

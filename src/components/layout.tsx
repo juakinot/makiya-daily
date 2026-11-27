@@ -145,9 +145,9 @@ export function PublicLayout() {
           </Link>
           <nav className="hidden items-center gap-6 text-sm font-medium text-ink-700 md:flex">
             {links.map((l) => (
-              <a key={l.href} href={l.href} className="hover:text-petrol-700">
+              <Link key={l.href} to={l.href} className="hover:text-petrol-700">
                 {l.label}
-              </a>
+              </Link>
             ))}
           </nav>
           <div className="hidden items-center gap-2 md:flex">
@@ -174,9 +174,9 @@ export function PublicLayout() {
           <div className="border-t border-line bg-white md:hidden">
             <div className="container-app flex flex-col gap-1 py-3">
               {links.map((l) => (
-                <a key={l.href} href={l.href} onClick={() => setOpen(false)} className="rounded-lg px-2 py-2.5 font-medium hover:bg-surface">
+                <Link key={l.href} to={l.href} onClick={() => setOpen(false)} className="rounded-lg px-2 py-2.5 font-medium hover:bg-surface">
                   {l.label}
-                </a>
+                </Link>
               ))}
               <div className="mt-2 grid grid-cols-2 gap-2">
                 {user ? (
@@ -206,8 +206,8 @@ export function PublicLayout() {
           <div>
             <p className="font-semibold text-ink-900">MakiYa</p>
             <ul className="mt-2 space-y-1.5">
-              <li><a href="/#como-funciona" className="hover:text-petrol-700">Cómo funciona</a></li>
-              <li><a href="/#cero-sorpresas" className="hover:text-petrol-700">Sistema Cero Sorpresas</a></li>
+              <li><Link to="/#como-funciona" className="hover:text-petrol-700">Cómo funciona</Link></li>
+              <li><Link to="/#cero-sorpresas" className="hover:text-petrol-700">Sistema Cero Sorpresas</Link></li>
               <li><Link to="/registro?rol=maki" className="hover:text-petrol-700">Quiero ser Maki</Link></li>
             </ul>
           </div>
