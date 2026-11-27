@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-white font-sans text-[15px] text-ink-900 antialiased;
+    font-feature-settings: 'ss01';
+  }
+  h1, h2, h3 {
+    @apply text-ink-900;
+  }
+  ::selection {
+    @apply bg-mint-100 text-petrol-800;
+  }
+}
+
+@layer utilities {
+  .pb-safe {
+    padding-bottom: max(env(safe-area-inset-bottom), 0px);
+  }
+  .container-app {
+    @apply mx-auto w-full max-w-content px-4 sm:px-6;
+  }
+}
