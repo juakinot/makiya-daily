@@ -1,6 +1,7 @@
 import { DomainError } from '@/domain/stateMachine';
 import type { Database, ID, IncidentStatus, MakiStatus, QuoteLine, ServiceItem, Settings, User, Verification } from '@/domain/types';
 import { linesTotal, round2 } from '@/domain/economics';
+import { priceCap } from '@/domain/pricing';
 import { nowISO, uid } from '@/lib/utils';
 import { checkEligibility } from '@/matching/engine';
 import { assertCan, getRequest, log, refreshCandidates, transition } from './common';
@@ -155,7 +156,13 @@ export function updateItem(db: Database, actor: User, itemId: ID, patch: Partial
   assertCan(actor, 'catalog:edit');
   const it = db.items.find((i) => i.id === itemId);
   if (!it) throw new DomainError('Servicio inexistente.');
-  if (patch.price !== undefined && !(patch.price > 0 && patch.price < 5000)) throw new DomainError('Precio de demostración inválido.');
+  if (patch.price !== undefined && !(patch.price > 0 && patch.price < 5000)) throw new DomainError('Precio inválido.');
+  if (patch.price !== undefined) {
+    const cap = priceCap(it, db.settings);
+    if (cap !== null && patch.price > cap) {
+      throw new DomainError(`El precio supera el tope de +${Math.round(db.settings.priceCapOverReference * 100)} % sobre la referencia de mercado (máximo S/ ${cap.toFixed(2)}).`);
+    }
+  }
   if (patch.durationMin !== undefined && !(patch.durationMin >= 15)) throw new DomainError('Duración mínima: 15 minutos.');
   if (patch.active) {
     const cat = db.categories.find((c) => c.id === it.categoryId);
@@ -167,12 +174,21 @@ export function updateItem(db: Database, actor: User, itemId: ID, patch: Partial
 
 export function updateSettings(db: Database, actor: User, patch: Partial<Settings>) {
   assertCan(actor, 'settings:edit');
-  const next = { ...db.settings, ...patch, costs: { ...db.settings.costs, ...(patch.costs ?? {}) }, matchingWeights: { ...db.settings.matchingWeights, ...(patch.matchingWeights ?? {}) } };
+  const next = {
+    ...db.settings,
+    ...patch,
+    costs: { ...db.settings.costs, ...(patch.costs ?? {}) },
+    matchingWeights: { ...db.settings.matchingWeights, ...(patch.matchingWeights ?? {}) },
+    ladder: { ...db.settings.ladder, ...(patch.ladder ?? {}), minCompletedByStep: { ...db.settings.ladder.minCompletedByStep, ...(patch.ladder?.minCompletedByStep ?? {}) } },
+  };
   for (const r of [next.commissionFirst, next.commissionRepeat]) {
     if (!(r >= 0 && r <= 0.5)) throw new DomainError('La comisión debe estar entre 0 % y 50 %.');
   }
   if (!(next.aiConfidenceThreshold > 0 && next.aiConfidenceThreshold < 1)) throw new DomainError('El umbral de confianza debe estar entre 0 y 1.');
   if (!(next.maxCandidates >= 1 && next.maxCandidates <= 3)) throw new DomainError('Se muestran entre 1 y 3 Makis.');
+  if (!(next.priceCapOverReference >= 0 && next.priceCapOverReference <= 0.5)) throw new DomainError('El tope sobre la referencia debe estar entre 0 % y 50 %.');
+  const steps = next.ladder.minCompletedByStep;
+  if (!(steps[2] > 0 && steps[2] <= steps[3] && steps[3] <= steps[4] && steps[4] <= steps[5])) throw new DomainError('Los umbrales de la escalera deben ser positivos y crecientes.');
   db.settings = next;
   return next;
 }

@@ -133,6 +133,7 @@ export function PublicLayout() {
     { href: '/#como-funciona', label: 'Cómo funciona' },
     { href: '/#servicios', label: 'Servicios' },
     { href: '/#cero-sorpresas', label: 'Cero Sorpresas' },
+    { href: '/#escalera', label: 'Cómo crecemos' },
     { href: '/#makis', label: 'Para Makis' },
   ];
   return (
@@ -394,8 +395,8 @@ export function AdminLayout() {
         <div className="flex flex-1">
           <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col bg-petrol-700 lg:flex">
             <div className="flex items-center gap-2 px-5 py-5">
-              <span className="rounded-lg bg-white p-1"><Isotipo className="h-6" /></span>
-              <span className="text-lg font-extrabold text-white">MakiYa <span className="font-medium text-mint-200">Admin</span></span>
+              <Isotipo className="h-7" />
+              <span className="font-display text-lg font-extrabold text-white">MakiYa <span className="font-medium text-mint-200">Admin</span></span>
             </div>
             {side}
           </aside>

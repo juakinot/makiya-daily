@@ -19,7 +19,7 @@ import { addDays, addHours, demoPhoto, toDateOnly } from '@/lib/utils';
  * DATOS DE DEMOSTRACIÓN. Todas las personas son ficticias y sus correos terminan en
  * @makiya.demo para ser identificables. Contraseña común de demo: ver DEMO_PASSWORD.
  */
-export const DB_VERSION = 4;
+export const DB_VERSION = 5;
 export const DEMO_PASSWORD = 'demo1234';
 
 const ALL: TimeWindow[] = ['manana', 'mediodia', 'tarde'];
@@ -80,6 +80,8 @@ export function createSeed(now = new Date()): Database {
     user('u_carlos', 'maki', 'Carlos Huamán', 'carlos@makiya.demo', 'Pueblo Libre', ago(80), '986 500 600'),
     user('u_jhon', 'maki', 'Jhon Torres', 'jhon@makiya.demo', 'Magdalena del Mar', ago(10), '986 700 800'),
     user('u_martin', 'maki', 'Martín Flores', 'martin@makiya.demo', 'Lince', ago(2), '986 900 100'),
+    user('u_ana', 'maki', 'Ana Lucía Vargas', 'ana@makiya.demo', 'Pueblo Libre', ago(40), '986 110 220'),
+    user('u_miguel', 'maki', 'Miguel Ríos', 'miguel@makiya.demo', 'Surquillo', ago(60), '986 330 440'),
   ];
 
   const homeProfiles: HomeProfile[] = [
@@ -120,6 +122,18 @@ export function createSeed(now = new Date()): Database {
       references: [{ name: 'Referencia demo 7', phone: '900 000 007' }, { name: 'Referencia demo 8', phone: '900 000 008' }], paused: false, joinedAt: ago(10),
     },
     {
+      userId: 'u_ana', bio: 'Técnica en carpintería de melamina. Me especializo en roperos, escritorios y repisas. Trabajo con cuidado y explico cada paso.',
+      specialties: ['armado', 'instalacion'], experienceYears: 6, districts: ['San Miguel', 'Pueblo Libre', 'Magdalena del Mar', 'Jesús María'],
+      availability: avail([1, 2, 3, 4, 5, 6], ['manana', 'mediodia']), status: 'habilitado', verification: verified(17, ago(38)),
+      references: [{ name: 'Referencia demo 11', phone: '900 000 011' }, { name: 'Referencia demo 12', phone: '900 000 012' }], paused: false, joinedAt: ago(40),
+    },
+    {
+      userId: 'u_miguel', bio: 'Instalador con 9 años en soportes de TV, cortinas y accesorios. Trabajo con detector de tuberías para no perforar donde no se debe.',
+      specialties: ['instalacion'], experienceYears: 9, districts: ['Miraflores', 'Surquillo', 'San Isidro', 'Lince', 'Jesús María'],
+      availability: avail([1, 2, 3, 4, 5, 6]), status: 'habilitado', verification: verified(19, ago(58)),
+      references: [{ name: 'Referencia demo 13', phone: '900 000 013' }, { name: 'Referencia demo 14', phone: '900 000 014' }], paused: false, joinedAt: ago(60),
+    },
+    {
       userId: 'u_martin', bio: 'Armado de muebles de melamina. Quiero sumarme a MakiYa.',
       specialties: ['armado'], experienceYears: 4, districts: ['Lince', 'Jesús María', 'San Isidro'],
       availability: avail([1, 3, 5], ALL), status: 'postulante',
@@ -150,7 +164,7 @@ export function createSeed(now = new Date()): Database {
   /** Historial completado (para métricas, reputación e ingresos). */
   const done = (o: {
     clientId: string; makiId: string; daysAgo: number; lines: { itemId: string; qty: number }[]; text: string; district: string;
-    q?: number; safety?: number; fair?: number; ease?: number; nps?: number; settled?: boolean; material?: number;
+    q?: number; safety?: number; fair?: number; ease?: number; nps?: number; settled?: boolean; material?: number; comment?: string;
   }) => {
     const r = baseReq(o);
     const visitAt = ago(o.daysAgo - 2, 10);
@@ -173,7 +187,7 @@ export function createSeed(now = new Date()): Database {
     };
     r.conformity = {
       signedName: users.find((u) => u.id === o.clientId)!.name, signedAt: addHours(visitAt, 1.7),
-      quality: o.q ?? 5, safety: o.safety ?? 5, fairPrice: o.fair ?? 4, ease: o.ease ?? 5, nps: o.nps ?? 9, comment: '',
+      quality: o.q ?? 5, safety: o.safety ?? 5, fairPrice: o.fair ?? 4, ease: o.ease ?? 5, nps: o.nps ?? 9, comment: o.comment ?? '',
     };
     r.status = 'completada';
     r.approvedTotal = r.lines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
@@ -197,24 +211,28 @@ export function createSeed(now = new Date()): Database {
     return r;
   };
 
-  done({ clientId: 'u_sofia', makiId: 'u_luis', daysAgo: 52, lines: [{ itemId: 'inst-tv', qty: 1 }], text: 'Instalar soporte de TV de 50 pulgadas', district: 'Jesús María', settled: true, material: 12 });
-  done({ clientId: 'u_mateo', makiId: 'u_rosa', daysAgo: 49, lines: [{ itemId: 'armado-cama', qty: 1 }], text: 'Armar cama de 2 plazas', district: 'San Miguel', settled: true });
-  done({ clientId: 'u_lucia', makiId: 'u_carlos', daysAgo: 46, lines: [{ itemId: 'armado-ropero', qty: 1 }], text: 'Armar ropero de 3 puertas', district: 'Pueblo Libre', settled: true, q: 4, fair: 4 });
+  done({ clientId: 'u_sofia', makiId: 'u_luis', daysAgo: 52, lines: [{ itemId: 'inst-tv', qty: 1 }], text: 'Instalar soporte de TV de 50 pulgadas', district: 'Jesús María', settled: true, material: 12, comment: 'Llegó puntual y antes de montar la TV hizo la prueba de tracción frente a mí.' });
+  done({ clientId: 'u_mateo', makiId: 'u_rosa', daysAgo: 49, lines: [{ itemId: 'armado-cama', qty: 1 }], text: 'Armar cama de 2 plazas', district: 'San Miguel', settled: true, comment: 'Rápida y ordenada. Se llevó todo el cartón.' });
+  done({ clientId: 'u_lucia', makiId: 'u_carlos', daysAgo: 46, lines: [{ itemId: 'armado-ropero', qty: 1 }], text: 'Armar ropero de 3 puertas', district: 'Pueblo Libre', settled: true, q: 4, fair: 4, comment: 'Buen trabajo, una puerta quedó algo dura pero la reguló al momento.' });
   done({ clientId: 'u_sofia', makiId: 'u_luis', daysAgo: 41, lines: [{ itemId: 'inst-repisa', qty: 3 }], text: 'Instalar 3 repisas', district: 'Jesús María', settled: true, q: 5 });
-  done({ clientId: 'u_valeria', makiId: 'u_rosa', daysAgo: 38, lines: [{ itemId: 'armado-cama', qty: 1 }, { itemId: 'armado-almacenamiento', qty: 1 }], text: 'Armar cama y velador', district: 'San Miguel', settled: true });
-  done({ clientId: 'u_renzo', makiId: 'u_luis', daysAgo: 33, lines: [{ itemId: 'inst-bano', qty: 2 }], text: 'Instalar toallero y portapapel', district: 'Lince', settled: true, q: 4, safety: 4, fair: 5 });
+  done({ clientId: 'u_valeria', makiId: 'u_rosa', daysAgo: 38, lines: [{ itemId: 'armado-cama', qty: 1 }, { itemId: 'armado-almacenamiento', qty: 1 }], text: 'Armar cama y velador', district: 'San Miguel', settled: true, comment: 'Me explicó cómo ajustar la cama si se afloja. Muy amable.' });
+  done({ clientId: 'u_renzo', makiId: 'u_luis', daysAgo: 33, lines: [{ itemId: 'inst-bano', qty: 2 }], text: 'Instalar toallero y portapapel', district: 'Lince', settled: true, q: 4, safety: 4, fair: 5, comment: 'No rompió ninguna mayólica, que era mi miedo.' });
   const withRework = done({ clientId: 'u_diego', makiId: 'u_carlos', daysAgo: 30, lines: [{ itemId: 'armado-escritorio', qty: 1 }], text: 'Armar escritorio', district: 'Pueblo Libre', settled: true, q: 3, fair: 4, nps: 6 });
   done({ clientId: 'u_mateo', makiId: 'u_rosa', daysAgo: 27, lines: [{ itemId: 'inst-tv', qty: 1 }], text: 'Instalar soporte de TV', district: 'San Miguel', settled: true, material: 15 });
-  done({ clientId: 'u_lucia', makiId: 'u_rosa', daysAgo: 22, lines: [{ itemId: 'armado-almacenamiento', qty: 2 }], text: 'Armar zapatera y cómoda', district: 'Pueblo Libre', settled: true, q: 5 });
+  done({ clientId: 'u_lucia', makiId: 'u_rosa', daysAgo: 22, lines: [{ itemId: 'armado-almacenamiento', qty: 2 }], text: 'Armar zapatera y cómoda', district: 'Pueblo Libre', settled: true, q: 5, comment: 'Ancló la cómoda a la pared sin que se lo pidiera.' });
   done({ clientId: 'u_sofia', makiId: 'u_luis', daysAgo: 18, lines: [{ itemId: 'inst-accesorio', qty: 2 }], text: 'Colgar espejo y perchero', district: 'Jesús María', settled: true });
-  done({ clientId: 'u_valeria', makiId: 'u_rosa', daysAgo: 12, lines: [{ itemId: 'inst-repisa', qty: 2 }], text: 'Instalar 2 repisas', district: 'San Miguel', settled: false, q: 5, nps: 10 });
-  done({ clientId: 'u_camila', makiId: 'u_carlos', daysAgo: 9, lines: [{ itemId: 'armado-cama', qty: 1 }], text: 'Armar camarote', district: 'Magdalena del Mar', settled: false, q: 5, fair: 5 });
+  done({ clientId: 'u_valeria', makiId: 'u_rosa', daysAgo: 12, lines: [{ itemId: 'inst-repisa', qty: 2 }], text: 'Instalar 2 repisas', district: 'San Miguel', settled: false, q: 5, nps: 10, comment: 'Ya es mi Maki de confianza. Todo nivelado.' });
+  done({ clientId: 'u_camila', makiId: 'u_carlos', daysAgo: 9, lines: [{ itemId: 'armado-cama', qty: 1 }], text: 'Armar camarote', district: 'Magdalena del Mar', settled: false, q: 5, fair: 5, comment: 'Muy cuidadoso con el piso. Lo recomiendo.' });
   done({ clientId: 'u_renzo', makiId: 'u_luis', daysAgo: 6, lines: [{ itemId: 'inst-tv', qty: 1 }], text: 'Instalar TV de 43 pulgadas', district: 'Lince', settled: false, q: 4 });
+  done({ clientId: 'u_sofia', makiId: 'u_ana', daysAgo: 20, lines: [{ itemId: 'armado-ropero', qty: 1 }], text: 'Armar ropero de 3 puertas', district: 'Jesús María', settled: true, q: 5, comment: 'Me explicó todo y dejó el ropero anclado. Me sentí muy tranquila.' });
+  done({ clientId: 'u_lucia', makiId: 'u_ana', daysAgo: 8, lines: [{ itemId: 'armado-escritorio', qty: 1 }, { itemId: 'inst-repisa', qty: 1 }], text: 'Armar escritorio e instalar repisa', district: 'Pueblo Libre', settled: false, q: 5, fair: 5 });
+  done({ clientId: 'u_renzo', makiId: 'u_miguel', daysAgo: 16, lines: [{ itemId: 'inst-cortina', qty: 2 }], text: 'Instalar 2 rieles de cortina', district: 'Lince', settled: true, q: 5, comment: 'Revisó la pared con un detector antes de perforar. Muy profesional.' });
+  done({ clientId: 'u_sofia', makiId: 'u_miguel', daysAgo: 5, lines: [{ itemId: 'inst-tv', qty: 1 }], text: 'Instalar soporte de TV', district: 'Jesús María', settled: false, q: 4, fair: 4 });
   done({ clientId: 'u_mateo', makiId: 'u_rosa', daysAgo: 4, lines: [{ itemId: 'armado-escritorio', qty: 1 }], text: 'Armar escritorio', district: 'San Miguel', settled: false, q: 5 });
 
   // Liquidaciones: agrupa los pagos marcados como liquidados por Maki
   const settlements: Database['settlements'] = [];
-  for (const makiId of ['u_rosa', 'u_luis', 'u_carlos']) {
+  for (const makiId of ['u_rosa', 'u_luis', 'u_carlos', 'u_ana', 'u_miguel']) {
     const ps = payments.filter((p) => p.makiId === makiId && p.settlementId === 'pending');
     if (!ps.length) continue;
     const id = `s_${makiId}`;
@@ -247,7 +265,7 @@ export function createSeed(now = new Date()): Database {
   conf.selectedMakiId = 'u_rosa';
   conf.assignedMakiId = 'u_rosa';
   conf.scopeApprovedAt = ago(1, -1.8);
-  conf.approvedTotal = 60;
+  conf.approvedTotal = conf.lines.reduce((a, l) => a + l.qty * l.unitPrice, 0);
   conf.offers = [{ makiId: 'u_rosa', sentAt: conf.scopeApprovedAt, status: 'aceptada', respondedAt: ago(1, -1) }];
   conf.visitCode = '4827';
   conf.status = 'confirmada';
@@ -263,7 +281,7 @@ export function createSeed(now = new Date()): Database {
   wait.window = 'manana';
   wait.selectedMakiId = 'u_rosa';
   wait.scopeApprovedAt = ago(0, -0.5);
-  wait.approvedTotal = 135;
+  wait.approvedTotal = wait.lines.reduce((a, l) => a + l.qty * l.unitPrice, 0);
   wait.offers = [{ makiId: 'u_rosa', sentAt: wait.scopeApprovedAt, status: 'pendiente' }];
   wait.status = 'esperando_maki';
   wait.candidates = [
@@ -292,7 +310,7 @@ export function createSeed(now = new Date()): Database {
   ev.selectedMakiId = 'u_carlos';
   ev.assignedMakiId = 'u_carlos';
   ev.scopeApprovedAt = ago(3, -1);
-  ev.approvedTotal = 95;
+  ev.approvedTotal = ev.lines.reduce((a, l) => a + l.qty * l.unitPrice, 0);
   ev.offers = [{ makiId: 'u_carlos', sentAt: ev.scopeApprovedAt, status: 'aceptada', respondedAt: ago(3, 1) }];
   ev.visitCode = '3190';
   ev.startedVisitAt = ago(0, -4);

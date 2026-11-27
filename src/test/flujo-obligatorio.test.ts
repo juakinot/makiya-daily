@@ -53,7 +53,8 @@ describe('Recorrido obligatorio cliente → admin → Maki → cliente → métr
     // 2. Solicitud registrada con precio cerrado
     expect(db.requests.find((r) => r.id === req.id)).toBeTruthy();
     expect(req.status).toBe('propuesta_lista');
-    expect(req.lines[0].unitPrice).toBe(70);
+    const camaPrice = db.items.find((i) => i.id === 'armado-cama')!.price;
+    expect(req.lines[0].unitPrice).toBe(camaPrice);
 
     // 3. Administrador puede verla
     expect(can(admin, 'request:view', req)).toBe(true);
@@ -96,19 +97,20 @@ describe('Recorrido obligatorio cliente → admin → Maki → cliente → métr
     const pay = confirmConformity(db, valeria, req.id, { signedName: 'Valeria Rojas', quality: 5, safety: 5, fairPrice: 5, ease: 5, nps: 10, comment: '' });
     expect(req.status).toBe('completada');
     expect(pay.method).toBe('simulado');
-    expect(pay.amount).toBe(70);
+    expect(pay.amount).toBe(camaPrice);
     expect(pay.isRepeat).toBe(true); // ya trabajó antes con Rosa → comisión Mi Maki
     expect(pay.commissionRate).toBe(db.settings.commissionRepeat);
-    expect(pay.commission).toBe(14);
-    expect(pay.makiNet).toBe(56);
+    const expectedCommission = Math.round(camaPrice * db.settings.commissionRepeat * 100) / 100;
+    expect(pay.commission).toBe(expectedCommission);
+    expect(pay.makiNet).toBe(camaPrice - expectedCommission);
     expect(req.warrantyUntil).toBeTruthy();
 
     // 12. Métricas e historial actualizados
     expect(northStar(db).total).toBe(before.ns + 1);
     expect(db.payments.length).toBe(before.pays + 1);
-    expect(businessMetrics(db).revenue.value).toBeCloseTo(before.revenue + 14, 2);
+    expect(businessMetrics(db).revenue.value).toBeCloseTo(before.revenue + expectedCommission, 2);
     expect(db.requests.filter((r) => r.clientId === valeria.id && r.status === 'completada').map((r) => r.id)).toContain(req.id);
-    expect(makiMetrics(db, rosa.id).pendingIncome.value).toBeGreaterThanOrEqual(56);
+    expect(makiMetrics(db, rosa.id).pendingIncome.value).toBeGreaterThanOrEqual(pay.makiNet);
 
     // Liquidación al Maki (simulada)
     const s = createSettlement(db, admin, rosa.id);

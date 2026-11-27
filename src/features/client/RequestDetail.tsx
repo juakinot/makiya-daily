@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, CalendarDays, CheckCircle2, Clock, Heart, Hourglass, MapPin, ReceiptText, RotateCcw, ShieldAlert, ShieldCheck } from 'lucide-react';
-import { MakiCard, ScopeCard, VisitCodeCard } from '@/components/domain';
+import { MakiCard, MakiProfileModal, ScopeCard, VisitCodeCard } from '@/components/domain';
 import { Badge, Button, Card, CardHeader, Checkbox, ChipGroup, EmptyState, Field, Input, Modal, Money, Notice, PhotoStrip, Rating, Select, Stepper, StatusBadge, Textarea, Timeline } from '@/components/ui';
 import { WINDOW_LABEL, WINDOW_SHORT } from '@/config/catalog';
 import { approvedExtrasTotal, finalAmount, linesTotal, pct } from '@/domain/economics';
 import { progressStep } from '@/domain/stateMachine';
 import type { IncidentType, ServiceRequest, TimeWindow } from '@/domain/types';
 import { dateOnlyPlus, formatDate, formatDateTime } from '@/lib/utils';
+import { makiStats, recommendMakis } from '@/matching/engine';
 import { approveAndSendOffer, cancelRequest, confirmConformity, decideExtra, reportIssue, reschedule, toggleFavoriteMaki } from '@/services/requestService';
 import { useActor, useApp } from '@/store/AppStore';
 
@@ -69,7 +70,10 @@ function Detail({ req }: { req: ServiceRequest }) {
           {req.status === 'esperando_maki' && selected && (
             <>
               <Notice icon={<Clock className="h-4 w-4" />} title={`Esperando que ${selected.name.split(' ')[0]} acepte`}>
-                Le enviamos tu solicitud con el alcance y precio que aprobaste. El Maki decide si puede tomarla; si no puede, te mostraremos otras opciones.
+                Le enviamos tu solicitud con el alcance y precio que aprobaste. El Maki decide si puede tomarla.{' '}
+                {req.backupMakiIds?.length
+                  ? `Si no puede, la enviaremos a tu siguiente opción: ${req.backupMakiIds.map((id) => db.users.find((u) => u.id === id)?.name.split(' ')[0]).join(' y luego ')}.`
+                  : 'Si no puede, te mostraremos otras opciones.'}
               </Notice>
               <MakiCard db={db} makiId={selected.id} categoryId={req.categoryId} showContact />
               <ScopeCard db={db} lines={req.lines} route={req.route} verifiedAt={req.quoteVerifiedAt} compact />
@@ -180,16 +184,43 @@ function Detail({ req }: { req: ServiceRequest }) {
   );
 }
 
+type SortKey = 'recomendado' | 'calificacion' | 'trabajos' | 'experiencia';
+
 function Proposal({ req, preferMakiId }: { req: ServiceRequest; preferMakiId?: string }) {
   const { db, run } = useApp();
-  const initial = req.candidates.find((c) => c.makiId === preferMakiId)?.makiId ?? req.candidates.find((c) => c.isMyMaki)?.makiId ?? req.candidates[0]?.makiId;
+  const match = useMemo(() => recommendMakis(db, req), [db, req]);
+  const recommended = req.candidates;
+  const allEligible = match.eligible;
+  const initial = allEligible.find((c) => c.makiId === preferMakiId)?.makiId ?? recommended.find((c) => c.isMyMaki)?.makiId ?? recommended[0]?.makiId;
   const [makiId, setMakiId] = useState<string | undefined>(initial);
+  const [mode, setMode] = useState<'recomendados' | 'todos'>('recomendados');
+  const [sort, setSort] = useState<SortKey>('recomendado');
+  const [useBackups, setUseBackups] = useState(true);
+  const [profileId, setProfileId] = useState<string | null>(null);
   const [approved, setApproved] = useState(false);
   const [date, setDate] = useState(req.preferredDate);
   const [win, setWin] = useState<TimeWindow>(req.window);
   const total = linesTotal(req.lines);
   const rejected = req.offers.filter((o) => o.status === 'rechazada' && o.reason !== 'Solicitud cancelada');
   const chosen = db.users.find((u) => u.id === makiId);
+
+  const sorted = useMemo(() => {
+    const list = [...(mode === 'recomendados' ? recommended : allEligible)];
+    const st = (id: string) => makiStats(db, id, req.categoryId);
+    const years = (id: string) => db.makiProfiles.find((m) => m.userId === id)?.experienceYears ?? 0;
+    if (sort === 'calificacion') list.sort((a, b) => st(b.makiId).bayesRating - st(a.makiId).bayesRating);
+    if (sort === 'trabajos') list.sort((a, b) => st(b.makiId).completed - st(a.makiId).completed);
+    if (sort === 'experiencia') list.sort((a, b) => years(b.makiId) - years(a.makiId));
+    return list;
+  }, [mode, sort, recommended, allEligible, db, req.categoryId]);
+
+  // Respaldo: las siguientes opciones recomendadas (o compatibles) distintas de la elegida.
+  const backups = useMemo(() => {
+    const pool = [...recommended, ...allEligible].map((c) => c.makiId).filter((id, i, arr) => arr.indexOf(id) === i && id !== makiId);
+    return pool.slice(0, 2);
+  }, [recommended, allEligible, makiId]);
+
+  const send = () => makiId && run((d, a) => approveAndSendOffer(d, a, req.id, makiId, useBackups ? backups : []), `Enviamos tu solicitud a ${chosen?.name.split(' ')[0]}.`);
 
   return (
     <>
@@ -206,13 +237,35 @@ function Proposal({ req, preferMakiId }: { req: ServiceRequest; preferMakiId?: s
 
       <section>
         <h2 className="mb-1 text-lg font-bold">Elige a tu Maki</h2>
-        <p className="mb-3 text-sm text-ink-600">Makis habilitados, disponibles en tu franja y que atienden {req.district}. Ordenados por calidad, evaluaciones y experiencia.</p>
-        {req.candidates.length ? (
-          <div className="space-y-2" role="radiogroup">
-            {req.candidates.map((c) => (
-              <MakiCard key={c.makiId} db={db} makiId={c.makiId} candidate={c} categoryId={req.categoryId} selected={makiId === c.makiId} onSelect={() => setMakiId(c.makiId)} />
-            ))}
-          </div>
+        <p className="mb-3 text-sm text-ink-600">
+          Todos están verificados en 4 capas, atienden {req.district} y tienen libre tu franja. Te recomendamos {recommended.length === 1 ? 'uno' : recommended.length}, pero puedes ver a todos, revisar sus perfiles y elegir a quien prefieras.
+        </p>
+        {allEligible.length ? (
+          <>
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <div className="inline-flex gap-1 rounded-xl border border-line bg-surface p-1" role="tablist">
+                {([['recomendados', `Recomendados (${recommended.length})`], ['todos', `Todos los disponibles (${allEligible.length})`]] as const).map(([v, l]) => (
+                  <button key={v} role="tab" aria-selected={mode === v} onClick={() => setMode(v)} className={`h-9 rounded-lg px-3 text-sm font-semibold ${mode === v ? 'bg-white text-petrol-700 shadow-card' : 'text-ink-600'}`}>{l}</button>
+                ))}
+              </div>
+              <Select aria-label="Ordenar Makis" value={sort} onChange={(e) => setSort(e.target.value as SortKey)} className="h-10 w-auto text-sm">
+                <option value="recomendado">Orden recomendado</option>
+                <option value="calificacion">Mejor calificación</option>
+                <option value="trabajos">Más trabajos</option>
+                <option value="experiencia">Más años de experiencia</option>
+              </Select>
+            </div>
+            <div className="space-y-2" role="radiogroup">
+              {sorted.map((c) => (
+                <MakiCard key={c.makiId} db={db} makiId={c.makiId} candidate={c} categoryId={req.categoryId} selected={makiId === c.makiId} onSelect={() => setMakiId(c.makiId)} onViewProfile={() => setProfileId(c.makiId)} />
+              ))}
+            </div>
+            {mode === 'recomendados' && allEligible.length > recommended.length && (
+              <button type="button" onClick={() => setMode('todos')} className="mt-2 text-sm font-semibold text-petrol-700 hover:underline">
+                Ver los {allEligible.length - recommended.length} Makis disponibles restantes
+              </button>
+            )}
+          </>
         ) : (
           <Card className="p-5">
             <p className="font-bold">No hay Makis disponibles en esa franja</p>
@@ -230,19 +283,28 @@ function Proposal({ req, preferMakiId }: { req: ServiceRequest; preferMakiId?: s
         )}
       </section>
 
-      {req.candidates.length > 0 && (
-        <Card className="sticky bottom-20 space-y-4 p-5 shadow-pop md:bottom-4">
+      {allEligible.length > 0 && (
+        <Card className="space-y-4 p-5 shadow-pop md:sticky md:bottom-4">
+          {backups.length > 0 && (
+            <Checkbox
+              checked={useBackups}
+              onChange={setUseBackups}
+              label="Si mi Maki no puede, enviar a mi siguiente opción"
+              description={`Para no empezar de nuevo: ${backups.map((id) => db.users.find((u) => u.id === id)?.name.split(' ')[0]).join(' y luego ')}.`}
+            />
+          )}
           <Checkbox
             checked={approved}
             onChange={setApproved}
             label={<>Apruebo el alcance y el precio de <Money value={total} /></>}
             description="Sé que no se cobrará nada adicional sin mi aprobación escrita y que pagaré después de comprobar el resultado."
           />
-          <Button block size="lg" disabled={!approved || !makiId} onClick={() => makiId && run((d, a) => approveAndSendOffer(d, a, req.id, makiId), `Enviamos tu solicitud a ${chosen?.name.split(' ')[0]}.`)}>
+          <Button block size="lg" disabled={!approved || !makiId} onClick={send}>
             {chosen ? `Aprobar y enviar a ${chosen.name.split(' ')[0]}` : 'Elige un Maki'}
           </Button>
         </Card>
       )}
+      <MakiProfileModal db={db} makiId={profileId} categoryId={req.categoryId} open={!!profileId} onClose={() => setProfileId(null)} onChoose={profileId ? () => setMakiId(profileId) : undefined} />
     </>
   );
 }

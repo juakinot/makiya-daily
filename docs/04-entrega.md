@@ -20,7 +20,7 @@ La instalación, ejecución, usuarios de demostración, arquitectura, alcance re
 
 ## Identidad de marca
 - Isotipo vectorizado desde el archivo oficial con *potrace* (sin redibujar): `public/brand/isotipo.svg`. El original está en `docs/logo-referencia-original.png`.
-- Colores del logo extraídos del archivo: `#17AAA0` y `#EA1B6B`. El isotipo nunca se recolorea ni se deforma.
+- Colores finales del isotipo según el Brand Kit: coral `#F0785A` y turquesa `#20A995`. La silueta se conserva del archivo oficial; no se deforma ni se le aplican efectos.
 - Isotipo, logotipo y slogan son componentes separados; el icono de app está en `public/brand/app-icon.svg` (también es el favicon).
 
 ## Resultados de pruebas automatizadas

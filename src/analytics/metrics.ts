@@ -1,3 +1,4 @@
+import { TRUST_LADDER } from '@/config/trustLadder';
 import { contributionMargin, round2 } from '@/domain/economics';
 import type { Database, ID } from '@/domain/types';
 import { hoursBetween } from '@/lib/utils';
@@ -161,4 +162,44 @@ export function weeklyCompleted(db: Database, weeks = 8, now = new Date()) {
     out.push({ label: `S-${w}`, value: v });
   }
   return out;
+}
+
+/* ───────── Escalera de confianza: progreso hacia el siguiente escalón ───────── */
+
+export interface LadderCheck {
+  label: string;
+  current: string;
+  target: string;
+  ok: boolean;
+}
+
+export function ladderProgress(db: Database, now = new Date()) {
+  const L = db.settings.ladder;
+  const ns = northStar(db, now);
+  const cm = clientMetrics(db);
+  const mm = makiMetrics(db);
+  const rework = ns.completed ? 1 - (ns.rate ?? 1) : 0;
+  let previousReady = true;
+  return TRUST_LADDER.map((step) => {
+    const active = step.categories.some((c) => db.categories.find((x) => x.id === c)?.status === 'activo');
+    if (step.step === 1) {
+      return { ...step, active, ready: true, checks: [] as LadderCheck[] };
+    }
+    const target = L.minCompletedByStep[step.step as 2 | 3 | 4 | 5];
+    const makisInSpecialty = Math.max(
+      0,
+      ...step.categories.map((c) => db.makiProfiles.filter((m) => m.status === 'habilitado' && m.specialties.includes(c)).length),
+    );
+    const checks: LadderCheck[] = [
+      { label: 'Servicios completados sin retrabajo', current: String(ns.total), target: `≥ ${target}`, ok: ns.total >= target },
+      { label: 'Retrabajo a 30 días (C8)', current: `${Math.round(rework * 100)} %`, target: `≤ ${Math.round(L.maxReworkRate * 100)} %`, ok: rework <= L.maxReworkRate },
+      { label: 'Seguridad percibida (H2)', current: cm.safety.value !== null ? cm.safety.value.toFixed(1) : '—', target: `≥ ${L.minSafety.toFixed(1)}`, ok: (cm.safety.value ?? 0) >= L.minSafety },
+      { label: 'Precio justo (H3)', current: cm.fairPrice.value !== null ? cm.fairPrice.value.toFixed(1) : '—', target: `≥ ${L.minFairPrice.toFixed(1)}`, ok: (cm.fairPrice.value ?? 0) >= L.minFairPrice },
+      { label: 'Makis activos (H4)', current: mm.retention.value !== null ? `${Math.round(mm.retention.value * 100)} %` : '—', target: `≥ ${Math.round(L.minMakiRetention * 100)} %`, ok: (mm.retention.value ?? 0) >= L.minMakiRetention },
+      { label: 'Makis evaluados en la especialidad', current: String(makisInSpecialty), target: `≥ ${L.minMakisPerCategory}`, ok: makisInSpecialty >= L.minMakisPerCategory },
+    ];
+    const ready = previousReady && checks.every((c) => c.ok);
+    previousReady = ready;
+    return { ...step, active, ready, checks };
+  });
 }

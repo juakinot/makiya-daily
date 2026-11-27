@@ -44,13 +44,33 @@ export interface ClosingTest {
   checklist: string[];
 }
 
+export interface MarketSource {
+  name: string;
+  price: string;
+  url?: string;
+  note?: string;
+}
+
+/** Referencia de mercado en Lima (investigación de escritorio; no es una cotización garantizada). */
+export interface MarketReference {
+  low: number;
+  high: number;
+  sources: MarketSource[];
+  checkedAt: string; // YYYY-MM-DD
+  /** true si hay una sola fuente o fuentes poco comparables. */
+  limited?: boolean;
+}
+
 export interface ServiceItem {
   id: ID;
   categoryId: ID;
   name: string;
   unit: string;
-  /** Precio de DEMOSTRACIÓN por unidad (S/). No es un precio de mercado. */
+  /** Precio del prototipo por unidad (S/), alineado a la referencia de mercado. Configurable. */
   price: number;
+  marketRef?: MarketReference;
+  /** Por qué este servicio genera confianza en el segmento inicial. */
+  trustRationale?: string;
   durationMin: number;
   includes: string[];
   excludes: string[];
@@ -280,6 +300,8 @@ export interface ServiceRequest {
   proposalAt?: ISODate;
   candidates: Candidate[];
   selectedMakiId?: ID;
+  /** Opciones de respaldo elegidas por el cliente: si el Maki rechaza, la oferta pasa a la siguiente. */
+  backupMakiIds?: ID[];
   offers: Offer[];
   scopeApprovedAt?: ISODate;
   approvedTotal?: number;
@@ -331,6 +353,16 @@ export interface CostAssumptions {
   monthlyFixedCosts: number;
 }
 
+export interface LadderCriteria {
+  /** Servicios completados sin retrabajo necesarios para habilitar cada escalón (2–5). */
+  minCompletedByStep: Record<2 | 3 | 4 | 5, number>;
+  maxReworkRate: number;
+  minSafety: number;
+  minFairPrice: number;
+  minMakiRetention: number;
+  minMakisPerCategory: number;
+}
+
 export interface Settings {
   commissionFirst: number; // 0.25
   commissionRepeat: number; // 0.20
@@ -342,6 +374,10 @@ export interface Settings {
   minLeadHours: number;
   warrantyDays: number;
   tradeTestMin: number;
+  /** Regla del informe (cap. 9): el tarifario no puede superar la referencia de mercado en más de este %. */
+  priceCapOverReference: number;
+  /** Criterios propuestos para habilitar cada escalón de la escalera de confianza. */
+  ladder: LadderCriteria;
   costs: CostAssumptions;
   diagnosticFee: number;
 }

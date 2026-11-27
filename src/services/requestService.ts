@@ -15,7 +15,7 @@ import type {
   User,
 } from '@/domain/types';
 import { addDays, addHours, nowISO, slotStart, uid } from '@/lib/utils';
-import { isMyMaki } from '@/matching/engine';
+import { checkEligibility, isMyMaki } from '@/matching/engine';
 import { assertCan, getRequest, log, nextCode, refreshCandidates, transition } from './common';
 
 /* ═════════════════════ CLIENTE ═════════════════════ */
@@ -129,16 +129,26 @@ export function reschedule(db: Database, actor: User, requestId: ID, date: strin
   return req;
 }
 
-/** Aprobación escrita del alcance y precio + elección del Maki → oferta al Maki. */
-export function approveAndSendOffer(db: Database, actor: User, requestId: ID, makiId: ID) {
+function isEligibleFor(db: Database, req: ServiceRequest, makiId: ID) {
+  const mp = db.makiProfiles.find((m) => m.userId === makiId);
+  return !!mp && checkEligibility(db, req, mp).eligible;
+}
+
+/**
+ * Aprobación escrita del alcance y precio + elección del Maki → oferta al Maki.
+ * El cliente puede elegir a cualquier Maki compatible (no solo a los recomendados) y,
+ * opcionalmente, dejar opciones de respaldo para que la oferta avance sola si su Maki no puede.
+ */
+export function approveAndSendOffer(db: Database, actor: User, requestId: ID, makiId: ID, backupMakiIds: ID[] = []) {
   const req = getRequest(db, requestId);
   assertCan(actor, 'request:approve_scope', req);
   if (req.status !== 'propuesta_lista') throw new DomainError('La propuesta ya no está disponible para aprobar.');
   if (!req.lines.length) throw new DomainError('La propuesta no tiene un alcance definido.');
-  const candidates = refreshCandidates(db, req);
-  if (!candidates.some((c) => c.makiId === makiId)) {
+  refreshCandidates(db, req);
+  if (!isEligibleFor(db, req, makiId)) {
     throw new DomainError('Ese Maki ya no está disponible en tu franja. Elige otra opción.');
   }
+  req.backupMakiIds = [...new Set(backupMakiIds)].filter((id) => id !== makiId && isEligibleFor(db, req, id)).slice(0, 2);
   req.scopeApprovedAt = nowISO();
   req.approvedTotal = linesTotal(req.lines);
   req.selectedMakiId = makiId;
@@ -299,6 +309,17 @@ export function respondOffer(db: Database, actor: User, requestId: ID, accept: b
     if (!reason.trim()) throw new DomainError('Cuéntanos brevemente por qué rechazas (nos ayuda a enviarte mejores oportunidades).');
     offer.status = 'rechazada';
     offer.reason = reason.trim();
+    // Opciones de respaldo que eligió el cliente: la oferta avanza sola, sin que tenga que volver a decidir.
+    const backups = req.backupMakiIds ?? [];
+    const next = backups.find((id) => !req.offers.some((o) => o.makiId === id) && isEligibleFor(db, req, id));
+    if (next) {
+      req.backupMakiIds = backups.filter((id) => id !== next);
+      req.selectedMakiId = next;
+      req.offers.push({ makiId: next, sentAt: nowISO(), status: 'pendiente' });
+      const u = db.users.find((x) => x.id === next);
+      log(req, 'respaldo', `${actor.name} no puede tomar el trabajo (${reason.trim()}). Enviamos la oferta a tu siguiente opción: ${u?.name}.`, 'sistema');
+      return req;
+    }
     req.selectedMakiId = undefined;
     transition(req, 'propuesta_lista', actor, `${actor.name} no puede tomar el trabajo (${reason.trim()}). Elige otra opción.`);
     refreshCandidates(db, req);

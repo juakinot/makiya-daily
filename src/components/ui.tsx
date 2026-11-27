@@ -1,10 +1,9 @@
 import { forwardRef, useEffect, useId, useRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
-import { Camera, Loader2, Star, X, Info } from 'lucide-react';
+import { Camera, Inbox, Loader2, Star, X, Info } from 'lucide-react';
 import { STATUS_LABEL } from '@/domain/stateMachine';
 import type { RequestStatus } from '@/domain/types';
 import { formatPEN } from '@/domain/economics';
 import { compressImage, cx } from '@/lib/utils';
-import { Isotipo } from '@/brand/Brand';
 
 /* ───────── Button ───────── */
 type BtnVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'soft';
@@ -180,7 +179,7 @@ export function ChipGroup<T extends string>({ options, value, onChange, multiple
 export function EmptyState({ title, description, action, icon }: { title: string; description?: ReactNode; action?: ReactNode; icon?: ReactNode }) {
   return (
     <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-line bg-white px-6 py-10 text-center">
-      {icon ?? <Isotipo className="mb-3 h-10 opacity-30 grayscale" />}
+      {icon ?? <Inbox className="mb-3 h-9 w-9 text-ink-300" strokeWidth={1.5} />}
       <p className="font-bold text-ink-900">{title}</p>
       {description && <p className="mt-1 max-w-sm text-sm text-ink-600">{description}</p>}
       {action && <div className="mt-4">{action}</div>}

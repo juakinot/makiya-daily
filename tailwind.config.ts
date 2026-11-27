@@ -1,8 +1,9 @@
 import type { Config } from 'tailwindcss';
 
 /**
- * Design tokens MakiYa.
- * turq-500 (#17AAA0) y accent-500 (#EA1B6B) se extrajeron del archivo del logo oficial.
+ * Design tokens MakiYa — según el Brand Kit (manual de marca).
+ * Petróleo #075B55 · Turquesa #20A995 · Menta #D9F1EB · Blanco · Coral #F0785A · Grafito #263B39.
+ * turq-500 y accent-500 (coral) no alcanzan contraste AA para texto pequeño: para texto se usan turq-700 y accent-700.
  * Ver docs/03-ux-ui.md para reglas de uso y contraste.
  */
 export default {
@@ -11,16 +12,18 @@ export default {
     extend: {
       colors: {
         petrol: { 50: '#EEF6F5', 100: '#D3E7E5', 600: '#0A6A63', 700: '#075B55', 800: '#05473F', 900: '#03332F' },
-        turq: { 50: '#E9F7F6', 100: '#C9EDEA', 500: '#17AAA0', 600: '#12938A', 700: '#0E7D75' },
+        turq: { 50: '#E8F7F4', 100: '#C6EDE4', 500: '#20A995', 600: '#178A79', 700: '#137366' },
         mint: { 50: '#EEF8F5', 100: '#D9F1EB', 200: '#BFE6DC' },
-        accent: { 50: '#FDECF2', 100: '#FBD3E2', 500: '#EA1B6B', 700: '#C2185B' },
+        accent: { 50: '#FEF1EC', 100: '#FCDACF', 500: '#F0785A', 700: '#B8472B' },
         ink: { 900: '#263B39', 700: '#3C504E', 600: '#566866', 400: '#8A9897', 300: '#B5C0BF' },
         line: '#E3EAE9',
         surface: '#F5F8F7',
         warn: { 50: '#FEF3C7', 700: '#B45309' },
       },
       fontFamily: {
-        sans: ['"Plus Jakarta Sans Variable"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        // Manual de marca: Inter para textos, descripciones y UI; Manrope para títulos, botones y elementos clave.
+        sans: ['"Inter Variable"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        display: ['"Manrope Variable"', '"Inter Variable"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
       borderRadius: { xl: '0.875rem', '2xl': '1.125rem' },
       boxShadow: {

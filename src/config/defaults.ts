@@ -18,6 +18,18 @@ export const DEFAULT_SETTINGS: Settings = {
   minLeadHours: 24,
   warrantyDays: 30,
   tradeTestMin: 14,
+  // Informe 9.4 / ficha técnica: tarifario con tope de +10 % sobre la referencia de mercado.
+  priceCapOverReference: 0.1,
+  // Escalera de confianza: criterios PROPUESTOS (configurables) basados en las metas del informe:
+  // retrabajo ≤ 10 % (C8), seguridad ≥ 4 (H2), precio justo ≥ 4 (H3), Makis activos ≥ 75 % (H4).
+  ladder: {
+    minCompletedByStep: { 2: 30, 3: 80, 4: 150, 5: 300 },
+    maxReworkRate: 0.1,
+    minSafety: 4,
+    minFairPrice: 4,
+    minMakiRetention: 0.75,
+    minMakisPerCategory: 3,
+  },
   // Informe Tabla 28 (supuestos del escenario base).
   costs: {
     warrantyProvisionRate: 0.05,

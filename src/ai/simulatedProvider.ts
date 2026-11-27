@@ -169,6 +169,15 @@ export class SimulatedRulesProvider implements AIProvider {
       seen.add(m.item.id);
       lines.push({ itemId: m.item.id, qty: detectQty(text, m.kw) });
     }
+    // Ropero: el tamaño define el servicio (hasta 3 puertas vs. 4 a 6 o corredizas).
+    const answersPre = input.answers ?? {};
+    const bigWardrobe = /([4-6]|cuatro|cinco|seis)\s*puertas|corrediz/.test(t) || ['4 a 6 puertas', 'Puertas corredizas'].includes(answersPre.ropero_puertas ?? '');
+    const small = lines.find((l) => l.itemId === 'armado-ropero');
+    const big = lines.find((l) => l.itemId === 'armado-ropero-grande');
+    if (small && (big || bigWardrobe) && ctx.items.some((i) => i.id === 'armado-ropero-grande' && i.active)) {
+      if (big) lines.splice(lines.indexOf(small), 1);
+      else small.itemId = 'armado-ropero-grande';
+    }
     const catIds = [...new Set(lines.map((l) => ctx.items.find((i) => i.id === l.itemId)!.categoryId))];
     const categoryId = catIds[0];
 
@@ -197,7 +206,7 @@ export class SimulatedRulesProvider implements AIProvider {
     }
     if (ids.includes('armado-ropero') && !answers.ropero_puertas && !/puertas|corrediz/.test(t)) {
       missing.push('Tamaño del ropero');
-      questions.push({ id: 'ropero_puertas', text: '¿Cuántas puertas tiene el ropero?', options: ['2 puertas', '3 o 4 puertas', 'Puertas corredizas'] });
+      questions.push({ id: 'ropero_puertas', text: '¿Cuántas puertas tiene el ropero?', options: ['2 o 3 puertas', '4 a 6 puertas', 'Puertas corredizas'] });
     }
     const finalQuestions = questions.slice(0, 2);
     confidence -= finalQuestions.length * 0.05;

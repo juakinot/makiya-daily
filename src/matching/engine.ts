@@ -134,7 +134,10 @@ export function scoreMaki(db: Database, req: ServiceRequest, mp: MakiProfile): C
 }
 
 export interface MatchResult {
+  /** Recomendados (1–3) que se muestran primero. */
   candidates: Candidate[];
+  /** Todos los Makis compatibles, ordenados por puntaje (para que el cliente pueda elegir libremente). */
+  eligible: Candidate[];
   evaluated: { makiId: ID; eligible: boolean; reason?: ExclusionReason; score?: number }[];
 }
 
@@ -159,5 +162,5 @@ export function recommendMakis(db: Database, req: ServiceRequest): MatchResult {
     const newcomer = scored.slice(max).find((c) => c.isNewMaki);
     if (newcomer) top = [...top.slice(0, max - 1), newcomer];
   }
-  return { candidates: top, evaluated };
+  return { candidates: top, eligible: scored, evaluated };
 }

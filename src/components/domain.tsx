@@ -5,7 +5,7 @@ import { finalAmount, linesTotal, pct } from '@/domain/economics';
 import type { Candidate, Database, ID, QuoteLine, ServiceRequest } from '@/domain/types';
 import { cx, formatDate } from '@/lib/utils';
 import { makiStats } from '@/matching/engine';
-import { Avatar, Badge, Card, Money, StatusBadge } from './ui';
+import { Avatar, Badge, Button, Card, Modal, Money, PhotoStrip, Rating, StatusBadge } from './ui';
 
 /** Los tres mecanismos del sistema Cero Sorpresas. */
 export const MECHANISMS = [
@@ -34,6 +34,9 @@ export function ScopeCard({ db, lines, route, verifiedAt, compact = false }: { d
                   <p className="text-xs text-ink-600">
                     {item ? `S/ ${l.unitPrice.toFixed(2)} por ${item.unit} · aprox. ${item.durationMin} min` : 'Línea a medida definida por el evaluador'}
                   </p>
+                  {item?.marketRef && !compact && (
+                    <p className="mt-0.5 text-xs text-turq-700">Referencia de mercado en Lima: S/ {item.marketRef.low}–{item.marketRef.high} por {item.unit}</p>
+                  )}
                 </div>
                 <Money value={l.qty * l.unitPrice} className="font-bold" />
               </div>
@@ -74,6 +77,7 @@ export function MakiCard({
   candidate,
   selected,
   onSelect,
+  onViewProfile,
   categoryId,
   showContact,
 }: {
@@ -82,6 +86,7 @@ export function MakiCard({
   candidate?: Candidate;
   selected?: boolean;
   onSelect?: () => void;
+  onViewProfile?: () => void;
   categoryId?: ID;
   showContact?: boolean;
 }) {
@@ -94,13 +99,14 @@ export function MakiCard({
       <Avatar name={u.name} className="h-12 w-12 text-base" />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <p className="font-bold">{u.name}</p>
+          <p className="font-display font-bold">{u.name}</p>
           {candidate?.isMyMaki && <Badge tone="accent">Tu Maki</Badge>}
           {candidate?.isNewMaki && <Badge tone="turq">Nuevo</Badge>}
         </div>
         <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-ink-600">
           <span className="inline-flex items-center gap-1"><Star className="h-3.5 w-3.5 fill-turq-500 text-turq-500" />{st.ratingAvg ? st.ratingAvg.toFixed(1) : '—'} <span className="text-ink-400">({st.ratingCount})</span></span>
           <span>{st.completed} trabajos</span>
+          <span>{mp.experienceYears} años</span>
           <span>Prueba de oficio {mp.verification.tradeTestScore ?? '—'}/20</span>
         </p>
         <div className="mt-2 flex flex-wrap gap-1.5">
@@ -124,14 +130,135 @@ export function MakiCard({
       )}
     </div>
   );
+  const profileBtn = onViewProfile && (
+    <div className="mt-3 flex border-t border-line pt-2">
+      <button type="button" onClick={onViewProfile} className="inline-flex items-center gap-1 rounded-lg px-1 py-1 text-sm font-semibold text-petrol-700 hover:underline">
+        Ver perfil, reseñas y trabajos <ChevronRight className="h-4 w-4" />
+      </button>
+    </div>
+  );
   if (onSelect) {
     return (
-      <button type="button" role="radio" aria-checked={selected} onClick={onSelect} className={cx('w-full rounded-2xl border bg-white p-4 text-left transition', selected ? 'border-petrol-700 ring-2 ring-petrol-700/15' : 'border-line hover:border-turq-500')}>
-        {body}
-      </button>
+      <div className={cx('rounded-2xl border bg-white p-4 transition', selected ? 'border-petrol-700 ring-2 ring-petrol-700/15' : 'border-line hover:border-turq-500')}>
+        <button type="button" role="radio" aria-checked={selected} onClick={onSelect} className="w-full text-left">
+          {body}
+        </button>
+        {profileBtn}
+      </div>
     );
   }
-  return <Card className="p-4">{body}</Card>;
+  return (
+    <Card className="p-4">
+      {body}
+      {profileBtn}
+    </Card>
+  );
+}
+
+/** Perfil completo del Maki para que el cliente decida con información (reseñas, trabajos y verificación). */
+export function MakiProfileModal({
+  db,
+  makiId,
+  categoryId,
+  open,
+  onClose,
+  onChoose,
+  chooseLabel,
+}: {
+  db: Database;
+  makiId: ID | null;
+  categoryId?: ID;
+  open: boolean;
+  onClose: () => void;
+  onChoose?: () => void;
+  chooseLabel?: string;
+}) {
+  const u = makiId ? db.users.find((x) => x.id === makiId) : undefined;
+  const mp = makiId ? db.makiProfiles.find((m) => m.userId === makiId) : undefined;
+  if (!u || !mp) return null;
+  const st = makiStats(db, u.id, categoryId);
+  const done = db.requests
+    .filter((r) => r.assignedMakiId === u.id && r.status === 'completada' && r.conformity)
+    .sort((a, b) => b.conformity!.signedAt.localeCompare(a.conformity!.signedAt));
+  const reviews = done.filter((r) => r.conformity!.comment).slice(0, 5);
+  const photos = done.flatMap((r) => r.evidence?.photos ?? []).slice(0, 6);
+  const safety = done.map((r) => r.conformity!.safety);
+  const avgSafety = safety.length ? safety.reduce((a, b) => a + b, 0) / safety.length : null;
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      size="lg"
+      title={u.name}
+      footer={onChoose ? <><Button variant="secondary" onClick={onClose}>Volver</Button><Button onClick={() => { onChoose(); onClose(); }}>{chooseLabel ?? `Elegir a ${u.name.split(' ')[0]}`}</Button></> : undefined}
+    >
+      <div className="space-y-5">
+        <div className="flex gap-3">
+          <Avatar name={u.name} className="h-14 w-14 text-lg" />
+          <div>
+            <div className="flex flex-wrap gap-1.5">
+              <Badge tone="petrol" icon={<ShieldCheck className="h-3 w-3" />}>Maki Probado</Badge>
+              {st.completed < 3 && <Badge tone="turq">Nuevo en MakiYa</Badge>}
+            </div>
+            <p className="mt-2 text-sm text-ink-700">{mp.bio || 'Sin presentación.'}</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {[
+            ['Calificación', st.ratingAvg ? `${st.ratingAvg.toFixed(1)} ★` : '—', `${st.ratingCount} evaluaciones`],
+            ['Trabajos', String(st.completed), `${st.completedInCategory} de esta categoría`],
+            ['Sin retrabajo', st.completed ? `${Math.round((1 - st.reworkCount / st.completed) * 100)} %` : '—', `${st.reworkCount} retrabajos`],
+            ['Seguridad percibida', avgSafety ? avgSafety.toFixed(1) : '—', 'según clientes'],
+          ].map(([l, v, h]) => (
+            <div key={l} className="rounded-xl bg-surface p-3">
+              <p className="text-xs font-semibold text-ink-600">{l}</p>
+              <p className="font-display text-lg font-extrabold text-petrol-700">{v}</p>
+              <p className="text-[11px] text-ink-600">{h}</p>
+            </div>
+          ))}
+        </div>
+        <div>
+          <p className="mb-2 text-sm font-bold">Verificación en 4 capas</p>
+          <ul className="grid gap-1.5 text-sm sm:grid-cols-2">
+            {[
+              [mp.verification.identity, 'Identidad verificada (DNI)'],
+              [mp.verification.background, 'Certificado de antecedentes'],
+              [mp.verification.references, 'Dos referencias favorables'],
+              [(mp.verification.tradeTestScore ?? 0) >= db.settings.tradeTestMin, `Prueba de oficio ${mp.verification.tradeTestScore ?? '—'}/20`],
+            ].map(([ok, l]) => (
+              <li key={l as string} className="flex items-center gap-2"><Check className={cx('h-4 w-4', ok ? 'text-turq-600' : 'text-ink-300')} />{l}</li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs text-ink-600">{mp.experienceYears} años de experiencia · Especialidades: {mp.specialties.map((s) => db.categories.find((c) => c.id === s)?.name).join(', ')} · Atiende: {mp.districts.join(', ')}</p>
+        </div>
+        {photos.length > 0 && (
+          <div>
+            <p className="mb-2 text-sm font-bold">Trabajos recientes (evidencia de cierre)</p>
+            <PhotoStrip photos={photos} />
+          </div>
+        )}
+        <div>
+          <p className="mb-2 text-sm font-bold">Reseñas de clientes</p>
+          {reviews.length ? (
+            <ul className="space-y-2">
+              {reviews.map((r) => (
+                <li key={r.id} className="rounded-xl border border-line p-3 text-sm">
+                  <div className="flex items-center justify-between gap-2">
+                    <Rating value={r.conformity!.quality} size="sm" />
+                    <span className="text-xs text-ink-400">{r.lines[0]?.description} · {formatDate(r.conformity!.signedAt)}</span>
+                  </div>
+                  <p className="mt-1 text-ink-700">«{r.conformity!.comment}»</p>
+                  <p className="mt-1 text-xs text-ink-400">{db.users.find((x) => x.id === r.clientId)?.name.split(' ')[0]} · reseña verificada tras un servicio pagado</p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-ink-600">Aún no tiene reseñas escritas. Todos los Makis pasan la misma evaluación antes de recibir trabajos.</p>
+          )}
+        </div>
+      </div>
+    </Modal>
+  );
 }
 
 export function VisitCodeCard({ code, makiName, date, window }: { code: string; makiName: string; date: string; window: keyof typeof WINDOW_SHORT }) {

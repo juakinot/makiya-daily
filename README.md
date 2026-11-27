@@ -1,6 +1,6 @@
 # MakiYa Daily — prototipo funcional
 
-> **Una mano para tu día.** Plataforma de ayuda cotidiana de confianza para el hogar: Maki Probado, Presupuesto Verificado y Pago tras Conformidad (sistema **Cero Sorpresas**).
+> **Una mano para tu día** Plataforma de ayuda cotidiana de confianza para el hogar: Maki Probado, Presupuesto Verificado y Pago tras Conformidad (sistema **Cero Sorpresas**).
 
 El prototipo tiene tres entornos conectados (**cliente**, **Maki** y **administrador**) que trabajan sobre los mismos datos y las mismas reglas de negocio. Funciona en **modo demostración**, sin servicios externos.
 
@@ -45,6 +45,7 @@ Todos son ficticios y sus correos terminan en `@makiya.demo`. La contraseña com
 | Cliente | camila@makiya.demo | Trabajo a medida en revisión del evaluador |
 | Maki | rosa@makiya.demo | Ofertas pendientes con ingreso neto; cliente que repite (20 %) |
 | Maki | carlos@makiya.demo | Trabajo por confirmar, historial con un retrabajo |
+| Maki | ana@makiya.demo · miguel@makiya.demo | Makis con pocos trabajos y reseñas escritas (perfil completo) |
 | Maki (postulante) | martin@makiya.demo | Evaluación en 4 capas pendiente; no recibe ofertas |
 | Administrador | admin@makiya.demo | Dashboard, revisión de presupuestos, evaluación de Makis, incidencias, liquidaciones, configuración y analítica |
 
@@ -82,7 +83,7 @@ Decisiones clave:
 - **IA detrás de un adaptador:** el proveedor simulado y el remoto cumplen el mismo contrato, y los *guardrails* se aplican a ambos (máximo 2 preguntas, revisión humana con baja confianza, solo servicios activos y derivación a una persona si el proveedor falla).
 - **Persistencia intercambiable:** la app solo conoce `Repository`.
 
-Documentación de diseño: [docs/00-auditoria.md](docs/00-auditoria.md) · [docs/01-blueprint.md](docs/01-blueprint.md) · [docs/02-user-flows.md](docs/02-user-flows.md) · [docs/03-ux-ui.md](docs/03-ux-ui.md) · [docs/04-entrega.md](docs/04-entrega.md).
+Documentación de diseño: [docs/00-auditoria.md](docs/00-auditoria.md) · [docs/05-precios-y-catalogo.md](docs/05-precios-y-catalogo.md) · [docs/01-blueprint.md](docs/01-blueprint.md) · [docs/02-user-flows.md](docs/02-user-flows.md) · [docs/03-ux-ui.md](docs/03-ux-ui.md) · [docs/04-entrega.md](docs/04-entrega.md).
 
 ## Modelo de datos (resumen)
 
@@ -101,7 +102,7 @@ Documentación de diseño: [docs/00-auditoria.md](docs/00-auditoria.md) · [docs
 | Pagos y liquidaciones | **Simulados.** No hay pasarela ni movimiento de dinero |
 | Autenticación | **Demo local** (SHA-256 en el navegador). En producción: Supabase Auth |
 | Persistencia | **localStorage** del navegador. El esquema de Supabase está preparado, pero el adaptador no está implementado |
-| Precios del tarifario | **Valores de demostración** editables, no precios de mercado |
+| Precios del tarifario | **Alineados a una referencia de mercado en Lima** (investigación de escritorio del 27-11-2026, con fuentes) y con un tope de +10 %; no son cotizaciones validadas con clientes |
 | Métricas | Calculadas sobre **datos ficticios**. No son resultados experimentales |
 | Notificaciones (WhatsApp, correo) | No implementadas; el seguimiento se ve en la app |
 
@@ -113,7 +114,7 @@ Documentación de diseño: [docs/00-auditoria.md](docs/00-auditoria.md) · [docs
 - El Libro de Reclamaciones virtual y la revisión legal del modelo de prestación independiente están pendientes.
 
 ## Resultados de pruebas
-`npm test`: **33 pruebas en 3 archivos, todas en verde.**
+`npm test`: **39 pruebas en 3 archivos, todas en verde.**
 - `src/test/flujo-obligatorio.test.ts`: los 12 pasos del recorrido obligatorio.
 - `src/test/reglas.test.ts`: IA y guardrails, motor de asignación, Cero Sorpresas, incidencias y garantía, admin, cuentas y economía (reproduce los S/ 7,30 de margen de la vía 1 del informe).
 - `src/test/ui.test.tsx`: renderizado de la landing, protección de rutas por rol y vistas del Maki habilitado y del postulante.

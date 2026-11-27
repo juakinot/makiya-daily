@@ -13,13 +13,13 @@
 |---|---|---|---|
 | `petrol-700` | **#075B55** | Identidad, navegación, títulos, botón primario | 8,0 : 1 ✔ |
 | `petrol-800` | #05473F | Hover del primario | — |
-| `turq-500` | **#17AAA0** (exacto del logo) | Interacciones secundarias, foco, progreso e iconos | 2,9 : 1 → **no se usa para texto pequeño** |
-| `turq-700` | #0E7D75 | Texto o enlace secundario cuando hace falta el tono turquesa | 5,0 : 1 ✔ |
+| `turq-500` | **#20A995** (Brand Kit) | Interacciones secundarias, foco, progreso e iconos | 2,9 : 1 → **no se usa para texto pequeño** |
+| `turq-700` | #137366 | Texto o enlace secundario cuando hace falta el tono turquesa | 5,7 : 1 ✔ |
 | `mint-100` | **#D9F1EB** | Superficies suaves y estados informativos | — |
 | `mint-50` | #EEF8F5 | Fondo de bloques destacados | — |
-| `accent-500` | **#EA1B6B** (exacto del logo) | Acentos puntuales no textuales: puntos de notificación, contadores, detalle del hero | 4,3 : 1 → **no se usa para texto pequeño** |
-| `accent-700` | #C2185B | Texto de alertas, errores y badges de atención | 5,9 : 1 ✔ |
-| `accent-50` | #FDECF2 | Fondo de alertas de atención | — |
+| `accent-500` | **#F0785A** coral (Brand Kit) | Acentos puntuales no textuales: subrayados, puntos de notificación | 2,8 : 1 → **no se usa para texto** |
+| `accent-700` | #B8472B | Texto de alertas, errores y badges de atención | 5,3 : 1 ✔ |
+| `accent-50` | #FEF1EC | Fondo de alertas de atención | — |
 | `ink-900` | **#263B39** (grafito verdoso) | Texto principal | 11,9 : 1 ✔ |
 | `ink-600` | #566866 | Texto secundario | 5,9 : 1 ✔ |
 | `ink-400` | #8A9897 | Placeholders y texto deshabilitado | — |
@@ -30,16 +30,17 @@
 Reglas: no hay grandes superficies turquesa ni rosa; las tarjetas son blancas con borde `line`; el verde petróleo solo aparece como fondo en el hero de la landing, la barra del admin y el botón primario.
 
 ## Tipografía
-**Plus Jakarta Sans Variable** (empaquetada con `@fontsource-variable`, funciona sin conexión).
+Según el Brand Kit (empaquetadas con `@fontsource-variable`, funcionan sin conexión):
+- **Manrope** (principal): títulos, botones, logotipo y elementos clave (`font-display`).
+- **Inter** (secundaria): textos, descripciones e interfaz (`font-sans`).
 
 | Estilo | Tamaño y peso |
 |---|---|
-| Display | 36–48 / 800, interlineado 1,1 |
-| H1 | 24–28 / 750 |
-| H2 | 18–20 / 700 |
-| Cuerpo | 15–16 / 450 |
-| Etiqueta | 13 / 600 |
-| Microcopy | 12 / 500 |
+| Display | 40–52 / 800, Manrope |
+| H1 | 24–28 / 800, Manrope |
+| H2 | 18–20 / 700, Manrope |
+| Cuerpo | 15–16 / 400–500, Inter |
+| Etiqueta | 13 / 600, Inter |
 
 Las cifras usan `tabular-nums`.
 

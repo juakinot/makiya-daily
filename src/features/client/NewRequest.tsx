@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, ArrowLeft, Ban, Lightbulb, Minus, Plus, Sparkles, Trash2, UserCheck } from 'lucide-react';
 import { getAIProvider, interpretRequest } from '@/ai';
 import { Badge, Button, Card, Checkbox, ChipGroup, Field, Input, Money, Notice, PhotoPicker, Select, SimulatedTag, Stepper, Textarea } from '@/components/ui';
-import { DISTRICTS, WINDOW_LABEL } from '@/config/catalog';
+import { DISTRICTS, PACKS, WINDOW_LABEL } from '@/config/catalog';
 import { linesTotal } from '@/domain/economics';
 import type { Interpretation, SuggestedLine, TimeWindow } from '@/domain/types';
 import { dateOnlyPlus, nowISO, uid } from '@/lib/utils';
@@ -25,9 +25,10 @@ export default function NewRequest() {
   const home = db.homeProfiles.find((h) => h.clientId === me.id);
   const preItem = db.items.find((i) => i.id === params.get('item'));
   const preMaki = db.users.find((u) => u.id === params.get('maki'));
+  const prePack = PACKS.find((p) => p.id === params.get('pack'));
 
   const [step, setStep] = useState(0);
-  const [text, setText] = useState(preItem ? `Necesito: ${preItem.name.toLowerCase()}` : '');
+  const [text, setText] = useState(prePack ? prePack.text : preItem ? `Necesito: ${preItem.name.charAt(0).toLowerCase() + preItem.name.slice(1)}` : '');
   const [photos, setPhotos] = useState<string[]>([]);
   const [photoConsent, setPhotoConsent] = useState(false);
   const [ai, setAi] = useState<Interpretation | null>(null);
@@ -125,6 +126,7 @@ export default function NewRequest() {
         <p className="text-ink-600">Paso {step + 1} de 3 · meta: menos de 3 minutos</p>
         <div className="mt-4"><Stepper steps={['Cuéntanos', 'Orientación', 'Cuándo y dónde']} current={step} /></div>
       </div>
+      {prePack && <Notice className="mb-4" title={prePack.name}>Completamos la descripción por ti. Puedes editarla, quitar o agregar servicios antes de aprobar.</Notice>}
       {preMaki && <Notice className="mb-4" icon={<UserCheck className="h-4 w-4" />} title={`Pedido con tu Maki: ${preMaki.name}`}>Lo mostraremos primero si está disponible en la franja que elijas.</Notice>}
 
       {step === 0 && (

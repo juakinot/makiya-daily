@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, ExternalLink } from 'lucide-react';
+import { TrustLadder } from '@/components/TrustLadder';
+import { priceCap, priceStatus, PRICE_STATUS_LABEL } from '@/domain/pricing';
 import { businessMetrics, clientMetrics, makiMetrics, northStar } from '@/analytics/metrics';
 import { Badge, Button, Card, CardHeader, Checkbox, Field, Input, Money, Notice, PageHeader, SimulatedTag, Stat, Textarea } from '@/components/ui';
 import { pct } from '@/domain/economics';
@@ -14,19 +16,18 @@ export function AdminServices() {
   const { db } = useApp();
   return (
     <div className="space-y-6">
-      <PageHeader title="Configuración de servicios" subtitle="Tarifario, alcance y prueba de cierre. Los precios son valores de demostración." action={<SimulatedTag>Precios de demostración</SimulatedTag>} />
+      <PageHeader title="Configuración de servicios" subtitle={`Tarifario, alcance y prueba de cierre. Regla del informe: ningún precio puede superar en más de ${Math.round(db.settings.priceCapOverReference * 100)} % la referencia alta de mercado.`} action={<SimulatedTag>Referencias de mercado: investigación de escritorio</SimulatedTag>} />
       {db.categories.filter((c) => c.status === 'activo').map((c) => (
         <section key={c.id}>
           <h2 className="mb-3 text-lg font-bold">{c.name}</h2>
           <div className="grid gap-3 lg:grid-cols-2">{db.items.filter((i) => i.categoryId === c.id).map((i) => <ItemEditor key={i.id} item={i} />)}</div>
         </section>
       ))}
-      <Card>
-        <CardHeader title="Categorías futuras (escalera de confianza)" subtitle="Existen en el modelo pero no son contratables. Habilitarlas requiere una decisión de producto y Makis evaluados en la especialidad." />
-        <div className="flex flex-wrap gap-2 p-5">
-          {db.categories.filter((c) => c.status === 'futuro').map((c) => <Badge key={c.id} tone="muted">Escalón {c.trustStep} · {c.name}</Badge>)}
-        </div>
-      </Card>
+      <section>
+        <h2 className="text-lg font-bold">Escalera de confianza</h2>
+        <p className="mb-3 text-sm text-ink-600">Avance hacia cada escalón con los datos actuales. Los umbrales son propuestas configurables en «Comisiones y reglas»; habilitar una categoría sigue siendo una decisión del equipo.</p>
+        <TrustLadder detailed />
+      </section>
     </div>
   );
 }
@@ -34,6 +35,9 @@ export function AdminServices() {
 function ItemEditor({ item }: { item: ServiceItem }) {
   const { run } = useApp();
   const [f, setF] = useState({ price: String(item.price), durationMin: String(item.durationMin), includes: item.includes.join('\n'), excludes: item.excludes.join('\n'), active: item.active });
+  const { db } = useApp();
+  const status = priceStatus(item, db.settings, Number(f.price) || 0);
+  const cap = priceCap(item, db.settings);
   const dirty = f.price !== String(item.price) || f.durationMin !== String(item.durationMin) || f.includes !== item.includes.join('\n') || f.excludes !== item.excludes.join('\n') || f.active !== item.active;
   return (
     <Card className="space-y-3 p-5">
@@ -41,8 +45,29 @@ function ItemEditor({ item }: { item: ServiceItem }) {
         <p className="font-bold">{item.name}</p>
         <Badge tone={item.active ? 'mint' : 'muted'}>{item.active ? 'Activo' : 'Inactivo'}</Badge>
       </div>
+      {item.marketRef && (
+        <div className="rounded-xl bg-surface p-3 text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="font-semibold">Mercado en Lima: S/ {item.marketRef.low}–{item.marketRef.high}</span>
+            <Badge tone={status === 'sobre_tope' ? 'accent' : status === 'en_rango' ? 'mint' : 'warn'}>{PRICE_STATUS_LABEL[status]}</Badge>
+          </div>
+          <p className="mt-0.5 text-xs text-ink-600">Tope permitido: S/ {cap?.toFixed(2)} · revisado el {item.marketRef.checkedAt}{item.marketRef.limited ? ' · referencia limitada (pocas fuentes)' : ''}</p>
+          <ul className="mt-2 space-y-1 text-xs text-ink-700">
+            {item.marketRef.sources.map((src) => (
+              <li key={src.name} className="flex gap-1">
+                <span>•</span>
+                <span>
+                  {src.url ? <a href={src.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 font-medium text-turq-700 hover:underline">{src.name}<ExternalLink className="h-3 w-3" /></a> : src.name}: {src.price}
+                  {src.note && <span className="text-ink-600"> ({src.note})</span>}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {item.trustRationale && <p className="text-xs text-ink-600"><span className="font-semibold text-ink-700">Por qué genera confianza:</span> {item.trustRationale}</p>}
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Precio demo (S/)"><Input type="number" min={1} step="0.5" value={f.price} onChange={(e) => setF({ ...f, price: e.target.value })} /></Field>
+        <Field label="Precio (S/)"><Input type="number" min={1} step="0.5" value={f.price} onChange={(e) => setF({ ...f, price: e.target.value })} /></Field>
         <Field label="Duración (min)"><Input type="number" min={15} step="5" value={f.durationMin} onChange={(e) => setF({ ...f, durationMin: e.target.value })} /></Field>
       </div>
       <Field label="Incluye (uno por línea)"><Textarea value={f.includes} onChange={(e) => setF({ ...f, includes: e.target.value })} className="min-h-[80px] text-sm" /></Field>
@@ -80,6 +105,8 @@ export function AdminSettings() {
     aiConfidenceThreshold: String(s.aiConfidenceThreshold),
     maxCandidates: String(s.maxCandidates),
     newMakiSlot: s.newMakiSlot,
+    priceCap: String(Math.round(s.priceCapOverReference * 100)),
+    steps: Object.fromEntries(Object.entries(s.ladder.minCompletedByStep).map(([k, v]) => [k, String(v)])) as Record<'2' | '3' | '4' | '5', string>,
     w: Object.fromEntries(Object.entries(s.matchingWeights).map(([k, v]) => [k, String(v)])) as Record<keyof Settings['matchingWeights'], string>,
     c: Object.fromEntries(Object.entries(s.costs).map(([k, v]) => [k, String(v)])) as Record<keyof Settings['costs'], string>,
   }));
@@ -95,6 +122,8 @@ export function AdminSettings() {
           aiConfidenceThreshold: Number(f.aiConfidenceThreshold),
           maxCandidates: Number(f.maxCandidates),
           newMakiSlot: f.newMakiSlot,
+          priceCapOverReference: Number(f.priceCap) / 100,
+          ladder: { ...s.ladder, minCompletedByStep: { 2: Number(f.steps['2']), 3: Number(f.steps['3']), 4: Number(f.steps['4']), 5: Number(f.steps['5']) } },
           matchingWeights: Object.fromEntries(Object.entries(f.w).map(([k, v]) => [k, Number(v)])) as unknown as Settings['matchingWeights'],
           costs: Object.fromEntries(Object.entries(f.c).map(([k, v]) => [k, Number(v)])) as unknown as Settings['costs'],
         }),
@@ -133,6 +162,20 @@ export function AdminSettings() {
             </div>
             <Checkbox checked={f.newMakiSlot} onChange={(v) => setF({ ...f, newMakiSlot: v })} label="Reservar un cupo para Makis nuevos" description="Evita que solo los Makis con historial reciban oportunidades." />
             <Field label="Umbral de confianza del asistente (0–1)" hint="Por debajo, la solicitud pasa a revisión humana."><Input type="number" min={0.1} max={0.95} step="0.05" value={f.aiConfidenceThreshold} onChange={(e) => setF({ ...f, aiConfidenceThreshold: e.target.value })} className="max-w-[140px]" /></Field>
+          </div>
+        </Card>
+        <Card>
+          <CardHeader title="Precios" subtitle="Regla del informe: tope sobre la referencia de mercado" />
+          <div className="space-y-3 p-5">
+            <Field label="Tope sobre la referencia alta de mercado (%)" hint="El informe propone +10 %. Admin › Servicios bloquea precios por encima."><Input type="number" min={0} max={50} value={f.priceCap} onChange={(e) => setF({ ...f, priceCap: e.target.value })} className="max-w-[140px]" /></Field>
+          </div>
+        </Card>
+        <Card>
+          <CardHeader title="Escalera de confianza" subtitle="Servicios completados sin retrabajo para habilitar cada escalón (propuesta)" />
+          <div className="grid grid-cols-2 gap-3 p-5 sm:grid-cols-4">
+            {(['2', '3', '4', '5'] as const).map((k) => (
+              <Field key={k} label={`Escalón ${k}`}><Input type="number" min={1} value={f.steps[k]} onChange={(e) => setF({ ...f, steps: { ...f.steps, [k]: e.target.value } })} /></Field>
+            ))}
           </div>
         </Card>
         <Card className="lg:col-span-2">

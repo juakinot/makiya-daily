@@ -155,9 +155,10 @@ describe('Cero Sorpresas', () => {
     const checklist = db.items.find((i) => i.id === 'armado-escritorio')!.closingTest.checklist.map((label) => ({ label, ok: true }));
     submitEvidence(db, maki, req.id, { photos: ['x'], checklist, notes: '' });
     const pay = confirmConformity(db, client, req.id, { signedName: 'Valeria R', quality: 5, safety: 5, fairPrice: 5, ease: 5, nps: 9, comment: '' });
-    expect(pay.amount).toBe(70); // 60 + 10 material; el adicional rechazado no suma
-    expect(pay.commission).toBe(12); // 20 % de 60 (material reembolsado al costo)
-    expect(pay.makiNet).toBe(58);
+    const desk = db.items.find((i) => i.id === 'armado-escritorio')!.price;
+    expect(pay.amount).toBe(desk + 10); // precio + 10 de material; el adicional rechazado no suma
+    expect(pay.commission).toBe(Math.round(desk * db.settings.commissionRepeat * 100) / 100); // el material se reembolsa al costo, sin comisión
+    expect(pay.makiNet).toBe(pay.amount - pay.commission);
   });
   it('material sin boleta no se acepta', async () => {
     const db = freshDb();
@@ -281,5 +282,63 @@ describe('Economía (informe cap. 10)', () => {
     expect(split.makiNet).toBe(63.75);
     expect(contributionMargin({ amount: 85, commission: 21.25, isRepeat: false }, false, db.settings)).toBe(7.3);
     expect(contributionMargin({ amount: 150, commission: 37.5, isRepeat: false }, true, db.settings)).toBe(11);
+  });
+});
+
+describe('Mejoras: catálogo, precios y elección del Maki', () => {
+  it('todos los precios del tarifario respetan el tope de +10 % sobre la referencia de mercado', async () => {
+    const { priceStatus } = await import('@/domain/pricing');
+    const db = freshDb();
+    for (const it of db.items) {
+      expect(it.marketRef, it.id).toBeTruthy();
+      expect(priceStatus(it, db.settings), it.id).not.toBe('sobre_tope');
+    }
+  });
+  it('el admin no puede fijar un precio sobre el tope', () => {
+    const db = freshDb();
+    const admin = userBy(db, 'admin@makiya.demo');
+    expect(() => updateItem(db, admin, 'inst-repisa', { price: 60 })).toThrow(/tope/);
+    updateItem(db, admin, 'inst-repisa', { price: 35 });
+    expect(db.items.find((i) => i.id === 'inst-repisa')!.price).toBe(35);
+  });
+  it('los paquetes sugeridos se interpretan como sus servicios', async () => {
+    const { PACKS } = await import('@/config/catalog');
+    const db = freshDb();
+    for (const p of PACKS) {
+      const r = await interpretRequest({ text: p.text, photoCount: 0 }, ctx(db), sim);
+      const got = Object.fromEntries(r.suggestedLines.map((l) => [l.itemId, l.qty]));
+      expect(got, p.id).toEqual(Object.fromEntries(p.lines.map((l) => [l.itemId, l.qty])));
+    }
+  });
+  it('distingue ropero pequeño de ropero grande', async () => {
+    const db = freshDb();
+    const a = await interpretRequest({ text: 'Armar un ropero de 6 puertas', photoCount: 0 }, ctx(db), sim);
+    expect(a.suggestedLines.map((l) => l.itemId)).toEqual(['armado-ropero-grande']);
+    const b = await interpretRequest({ text: 'Armar un ropero', photoCount: 0, answers: { ropero_puertas: '2 o 3 puertas' } }, ctx(db), sim);
+    expect(b.suggestedLines.map((l) => l.itemId)).toEqual(['armado-ropero']);
+  });
+  it('el cliente puede elegir a cualquier Maki compatible, no solo a los recomendados', async () => {
+    const db = freshDb();
+    const c = userBy(db, 'mateo@makiya.demo');
+    const req = await newRequest(db, c, 'Armar una cama');
+    const all = recommendMakis(db, req).eligible;
+    expect(all.length).toBeGreaterThanOrEqual(req.candidates.length);
+    const last = all[all.length - 1].makiId;
+    approveAndSendOffer(db, c, req.id, last);
+    expect(req.selectedMakiId).toBe(last);
+    // …pero no a uno incompatible
+    const req2 = await newRequest(db, c, 'Armar una cama');
+    expect(() => approveAndSendOffer(db, c, req2.id, 'u_luis')).toThrow(/disponible/);
+  });
+  it('si el Maki rechaza, la oferta pasa sola a la opción de respaldo del cliente', async () => {
+    const db = freshDb();
+    const c = userBy(db, 'mateo@makiya.demo');
+    const req = await newRequest(db, c, 'Armar una cama');
+    const [first, second] = req.candidates.map((x) => x.makiId);
+    approveAndSendOffer(db, c, req.id, first, [second]);
+    respondOffer(db, db.users.find((u) => u.id === first)!, req.id, false, 'Tengo otro compromiso');
+    expect(req.status).toBe('esperando_maki');
+    expect(req.selectedMakiId).toBe(second);
+    expect(req.offers.find((o) => o.makiId === second)?.status).toBe('pendiente');
   });
 });

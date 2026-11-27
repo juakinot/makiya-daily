@@ -136,7 +136,7 @@ function OfferCard({ req }: { req: ServiceRequest }) {
           </div>
         </div>
       </div>
-      <Modal open={rejectOpen} onClose={() => setRejectOpen(false)} title="Rechazar oferta" footer={<><Button variant="secondary" onClick={() => setRejectOpen(false)}>Volver</Button><Button variant="danger" disabled={!reason} onClick={() => run((d, a) => respondOffer(d, a, req.id, false, reason), 'Oferta rechazada. El cliente verá otras opciones.')}>Rechazar</Button></>}>
+      <Modal open={rejectOpen} onClose={() => setRejectOpen(false)} title="Rechazar oferta" footer={<><Button variant="secondary" onClick={() => setRejectOpen(false)}>Volver</Button><Button variant="danger" disabled={!reason} onClick={() => run((d, a) => respondOffer(d, a, req.id, false, reason), 'Oferta rechazada, sin penalidad. MakiYa la ofrecerá a otro Maki o al cliente.')}>Rechazar</Button></>}>
         <p className="mb-3 text-sm text-ink-600">Rechazar no te penaliza. Nos ayuda a enviarte mejores oportunidades.</p>
         <ChipGroup options={['Tengo otro compromiso', 'Queda lejos de mi ruta', 'No tengo la herramienta necesaria', 'El trabajo excede mi especialidad'].map((r) => ({ value: r, label: r }))} value={reason} onChange={(v) => setReason(v as string)} />
       </Modal>
