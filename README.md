@@ -6,6 +6,8 @@ El prototipo tiene tres entornos conectados (**cliente**, **Maki** y **administr
 
 Prototipo académico — Innovación y Desarrollo de Productos, Universidad Científica del Sur (2026).
 
+**Demo en línea:** https://juakinot.github.io/makiya-daily/. Se publica automáticamente con GitHub Actions en cada push a `main`. Los datos de demostración viven en el navegador de cada visitante.
+
 ---
 
 ## Instalación y ejecución
